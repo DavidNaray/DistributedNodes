@@ -20,6 +20,8 @@ void process_line(char *line, Config *cfg){
     else if (strcmp(key, "NODE_PORT") == 0) {cfg->node_port = atoi(value);}
 
     else if (strcmp(key, "WORKER_THREADS") == 0) {cfg->worker_threads = atoi(value);}
+
+    else if (strcmp(key, "QUEUE_ORDER") == 0) {cfg->queue_order = atoi(value);}
 }
 
 void print_config(const Config *cfg) {
