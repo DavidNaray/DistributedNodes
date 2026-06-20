@@ -37,7 +37,8 @@ typedef struct {
     pthread_cond_t cond;  //prevents busy waiting, (job_count=0 then sleep)
 } Scheduler;
 
-//kind of like creating the object and then exporting it in javascript
+//kind of like creating the object and then exporting it in javascript 
+//(global variable kinda, so all threads can access it)
 extern Scheduler scheduler;
 
 void push_task(Queue *q, Task task);
