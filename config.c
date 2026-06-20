@@ -3,7 +3,7 @@
 #include "config.h"
 #include <string.h>
 
-void process_line(char *line, Config *cfg){
+bool process_line(char *line, Config *cfg){
     char *key = strtok(line, "=");
     char *value = strtok(NULL, "=");
 
@@ -22,6 +22,8 @@ void process_line(char *line, Config *cfg){
     else if (strcmp(key, "WORKER_THREADS") == 0) {cfg->worker_threads = atoi(value);}
 
     else if (strcmp(key, "QUEUE_ORDER") == 0) {cfg->queue_order = atoi(value);}
+
+    return true;
 }
 
 void print_config(const Config *cfg) {
@@ -30,15 +32,14 @@ void print_config(const Config *cfg) {
     printf("NODE_START:     %s\n", cfg->node_start);
     printf("NODE_PORT:      %d\n", cfg->node_port);
     printf("WORKER_THREADS: %d\n", cfg->worker_threads);
+    printf("QUEUE_ORDER:    %d\n", cfg->queue_order);
     printf("--------------\n");
 }
 
 
 bool load_config(const char *filepath, Config *setup) {
     FILE * f;
-    char * line = NULL;
-    size_t len = 0;
-    ssize_t read;
+    char buffer[512];
 
     f = fopen(filepath, "r");
     // !f means the pointer to the file, points to nothing
@@ -48,10 +49,9 @@ bool load_config(const char *filepath, Config *setup) {
     setup->worker_threads = 1;//default threadcount is 1
 
     //read the file line by line
-    while ((read = getline(&line, &len, f)) != -1) { process_line(line,setup); }
+    while (fgets(buffer, sizeof(buffer), f)) { process_line(buffer,setup); }
 
     fclose(f);
-    if (line)free(line);
 
     print_config(setup);
 

@@ -2,10 +2,10 @@
 #define SCHEDULE_H   // these form a guard
 
 #include <pthread.h>
+#include <stdlib.h> 
 #include "config.h"
 
-//kind of like creating the object and then exporting it in javascript
-extern Scheduler scheduler;
+
 
 //function pointer with a void pointer parameter, ie parameter can be anything
 typedef void (*TaskFunction)(void *arg); 
@@ -37,6 +37,8 @@ typedef struct {
     pthread_cond_t cond;  //prevents busy waiting, (job_count=0 then sleep)
 } Scheduler;
 
+//kind of like creating the object and then exporting it in javascript
+extern Scheduler scheduler;
 
 void push_task(Queue *q, Task task);
 
@@ -44,7 +46,7 @@ TaskNode* pop_task(Queue *q);
 
 void init_queue(Queue *setup);
 
-void init_scheduler(Config *setup);
+void init_scheduler(const Config *setup);
 
 
 #endif
