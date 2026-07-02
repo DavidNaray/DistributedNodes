@@ -3,6 +3,14 @@
 #include "config.h"
 #include <string.h>
 
+void trimEnd(char *value){
+    size_t len = strlen(value);
+
+    if (len > 0 && value[len - 1] == '\n'){value[--len] = '\0';}
+
+    if (len > 0 && value[len - 1] == '\r'){value[--len] = '\0';}
+}
+
 bool process_line(char *line, Config *cfg){
     char *key = strtok(line, "=");
     char *value = strtok(NULL, "=");
@@ -13,6 +21,9 @@ bool process_line(char *line, Config *cfg){
     //since the param might have different size and thats a nono for strings of a buffer size
     //hence the strncpy to copy over the value into the buffer
     //atoi turns a number string into an actual number
+    
+    trimEnd(value);
+
     if (strcmp(key, "NODE_ROOT") == 0) {strncpy(cfg->node_root, value, sizeof(cfg->node_root));}
 
     else if (strcmp(key, "NODE_START") == 0) {strncpy(cfg->node_start, value, sizeof(cfg->node_start));}
