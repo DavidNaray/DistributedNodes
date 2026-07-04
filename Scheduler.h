@@ -1,6 +1,8 @@
 #ifndef SCHEDULE_H
 #define SCHEDULE_H   // these form a guard
 
+
+#include <windows.h>
 #include <pthread.h>
 #include <stdlib.h> 
 #include "config.h"
@@ -35,6 +37,8 @@ typedef struct {
 
     pthread_mutex_t lock; //prevents race conditions
     pthread_cond_t cond;  //prevents busy waiting, (job_count=0 then sleep)
+
+    HANDLE hPipe;
 } Scheduler;
 
 //kind of like creating the object and then exporting it in javascript 
