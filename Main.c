@@ -1,19 +1,16 @@
 #include "scheduler.h"
 #include "config.h"
 #include <stdio.h> 
-#include "Structs.h"
-#include "../C_MMO_RPG_rewrite/LoginRegister/Register.c"
+#include "../C_MMO_RPG_rewrite/LoginRegister/LoginRegister.h"
 #include <cJSON.h>
+#include "../C_MMO_RPG_rewrite/MongoDBReadWriteCache/Cache.h"
 
+// GlobalCache = NULL;
 
 void test_task(void *arg) {
     printf("Worker executed test task: %s\n", (char*)arg);
 }
 
-
-// void RegisterTask(void *arg){
-//     printf("REGISTER REG REG\n");
-// }
 
 Task parse_json_to_task(char json[]){
     cJSON *root = cJSON_Parse(json);
@@ -33,6 +30,17 @@ Task parse_json_to_task(char json[]){
 
         cJSON_Delete(root);
         return (Task){RegisterTask, args};
+    
+    }
+    else if (strcmp(type->valuestring, "Login") == 0) {
+        RegisterArgs *args = malloc(sizeof(RegisterArgs));
+
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+
+        strcpy(args->password, cJSON_GetObjectItem(root, "password")->valuestring);
+
+        cJSON_Delete(root);
+        return (Task){LoginTask, args};
     
     }
 
@@ -134,6 +142,15 @@ void boot_node_server(const char *root, const char *command){
 int main() {
     Config setup;// no need to malloc, all are known types
     
+    GlobalCache=cache_create();
+
+    mongoc_init();
+    mongoClient = mongoc_client_new("mongodb://localhost:27019");
+    if (!mongoClient) {
+        printf("Failed to connect to MongoDB\n");
+        return 1;
+    }
+    
     bool successConfig=load_config("env.conf", &setup);
     if (!successConfig) {printf("Failed to load config\n");return 1;}
     init_scheduler(&setup);
@@ -180,4 +197,6 @@ int main() {
     //makes sure threads finish their work before closure
     for (int i = 0; i < (setup.worker_threads+1); i++) {pthread_join(threads[i], NULL);}
     free(threads);
+
+    cache_free(GlobalCache);
 }

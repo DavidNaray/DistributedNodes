@@ -2,6 +2,9 @@
 #define SCHEDULE_H   // these form a guard
 
 
+#include <winsock2.h>//need these 2 because mongodb imports stuff
+#include <ws2tcpip.h>// and theres conflict so prevents windows.h bringing wrong stuff?
+
 #include <windows.h>
 #include <pthread.h>
 #include <stdlib.h> 
