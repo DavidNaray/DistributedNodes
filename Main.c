@@ -8,6 +8,8 @@
 
 #include "../C_MMO_RPG_rewrite/serverComm/ReadWriteServ.h"
 
+#include "../C_MMO_RPG_rewrite/UserUpdates/UserUpdates.h"
+
 void test_task(void *arg) {
     printf("Worker executed test task: %s\n", (char*)arg);
 }
@@ -20,6 +22,7 @@ Task parse_json_to_task(char json[]){
     }
     
     const cJSON *type = cJSON_GetObjectItem(root, "type");
+    printf("'%s'\n", type->valuestring);
 
     if (strcmp(type->valuestring, "Register") == 0) {
         RegisterArgs *args = malloc(sizeof(RegisterArgs));
@@ -48,15 +51,18 @@ Task parse_json_to_task(char json[]){
         return (Task){LoginTask, args};
     
     }
-    else if(strcmp(type->valuestring, "TilesRequest") == 0){
-        //what tiles should the user be sent to render
-            //what tiles are they currently seeing?
-            //what tiles should they be seeing
-    }
-    else if(strcmp(type->valuestring, "TechTreeUpdate") == 0){
+    else if (strcmp(type->valuestring, "TechTreeUpdate") == 0){
         //what tech is available to the user
+        UUpdate *args = malloc(sizeof(UUpdate));
+        
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+        strcpy(args->sockid, cJSON_GetObjectItem(root, "sockid")->valuestring);
+
+        cJSON_Delete(root);
+        return (Task){TechUpdateTask, args};
     }
 
+    printf("mega failure\n");
     cJSON_Delete(root);
     return (Task){NULL, NULL};
 }
@@ -103,10 +109,21 @@ void* Reader_thread(void* arg) {
             NULL
         );
 
-        if (!ok || bytesRead == 0) {continue; /*Node disconnected or no data*/ }
+        // if (!ok || bytesRead == 0) {continue; /*Node disconnected or no data*/ }
+        if (!ok) {
+            DWORD err = GetLastError();
+            printf("ReadFile failed. err=%lu\n", err);
+            continue;
+        }
+
+        if (bytesRead == 0) {
+            printf("ReadFile returned 0 bytes\n");
+            continue;
+        }
 
         buffer[bytesRead] = '\0';
 
+        printf("Read %lu bytes: %s\n", bytesRead, buffer);
         // Parse JSON into the appropriate Task
         Task t = parse_json_to_task(buffer);
         
