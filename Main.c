@@ -4,13 +4,13 @@
 #include "../C_MMO_RPG_rewrite/LoginRegister/LoginRegister.h"
 #include <cJSON.h>
 #include "../C_MMO_RPG_rewrite/MongoDBReadWriteCache/Cache.h"
+#include "../C_MMO_RPG_rewrite/noiseLib/TerrainGeneration.h"
 
-// GlobalCache = NULL;
+#include "../C_MMO_RPG_rewrite/serverComm/ReadWriteServ.h"
 
 void test_task(void *arg) {
     printf("Worker executed test task: %s\n", (char*)arg);
 }
-
 
 Task parse_json_to_task(char json[]){
     cJSON *root = cJSON_Parse(json);
@@ -24,6 +24,9 @@ Task parse_json_to_task(char json[]){
     if (strcmp(type->valuestring, "Register") == 0) {
         RegisterArgs *args = malloc(sizeof(RegisterArgs));
 
+
+        args->RId = atoi(cJSON_GetObjectItem(root, "RId")->valuestring);
+
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
 
         strcpy(args->password, cJSON_GetObjectItem(root, "password")->valuestring);
@@ -35,6 +38,8 @@ Task parse_json_to_task(char json[]){
     else if (strcmp(type->valuestring, "Login") == 0) {
         RegisterArgs *args = malloc(sizeof(RegisterArgs));
 
+        args->RId = atoi(cJSON_GetObjectItem(root, "RId")->valuestring);
+
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
 
         strcpy(args->password, cJSON_GetObjectItem(root, "password")->valuestring);
@@ -42,6 +47,14 @@ Task parse_json_to_task(char json[]){
         cJSON_Delete(root);
         return (Task){LoginTask, args};
     
+    }
+    else if(strcmp(type->valuestring, "TilesRequest") == 0){
+        //what tiles should the user be sent to render
+            //what tiles are they currently seeing?
+            //what tiles should they be seeing
+    }
+    else if(strcmp(type->valuestring, "TechTreeUpdate") == 0){
+        //what tech is available to the user
     }
 
     cJSON_Delete(root);
@@ -81,7 +94,6 @@ void* Reader_thread(void* arg) {
     DWORD bytesRead;
 
     while (1) {
-
         //read and write file are thread safe according to google for windows
         BOOL ok = ReadFile(
             scheduler.hPipe,
@@ -100,6 +112,7 @@ void* Reader_thread(void* arg) {
         
         push_task(&scheduler.queues[0], t);
     }
+    printf("[Reader] Thread terminated cleanly.\n");
 }
 
 
@@ -143,6 +156,8 @@ int main() {
     Config setup;// no need to malloc, all are known types
     
     GlobalCache=cache_create();
+    TSetup=SetupTerrainFields(512,512,"Cellular",0.011,123,"../C_MMO_RPG_rewrite/NodeServer/Tiles/");
+    ApplyTerrainFields();
 
     mongoc_init();
     mongoClient = mongoc_client_new("mongodb://localhost:27019");
@@ -155,34 +170,25 @@ int main() {
     if (!successConfig) {printf("Failed to load config\n");return 1;}
     init_scheduler(&setup);
 
-    HANDLE hPipe = CreateNamedPipe(
-        TEXT("\\\\.\\pipe\\SchedulerPipe"),//simply the name of the pipe
-        PIPE_ACCESS_DUPLEX,//two way communication
-        
-        // stream of messages, read from it as messages, and its blocking so read/write 
-            //of it dont return immediately
-        PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT, 
-        1,//nMaxInstances
-        1024,//nOutBufferSize
-        1024,//nInBufferSize
-        0,//nDefaultTimeOut
-        NULL//[in, optional] LPSECURITY_ATTRIBUTES lpSecurityAttributes
-    );
-
-    scheduler.hPipe=hPipe;
+    setupPipe();
+    // scheduler.hPipe=hPipe;
 
     //create an array of threads, can also use it to free it at program end.
     pthread_t *threads = malloc(sizeof(pthread_t) * (setup.worker_threads+1));
 
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, 8 * 1024 * 1024);   // 8 MB stack
+
     for (int i = 0; i < setup.worker_threads; i++) {
-        pthread_create(&threads[i], NULL, worker_thread, NULL);
+        pthread_create(&threads[i], &attr, worker_thread, NULL);
     }
 
-    pthread_create(&threads[setup.worker_threads], NULL, Reader_thread, NULL);
+    pthread_create(&threads[setup.worker_threads], &attr, Reader_thread, NULL);
 
     boot_node_server(setup.node_root,setup.node_start);
     
-    ConnectNamedPipe(hPipe, NULL);//wait for nodejs server to connect to pipe
+    ConnectNamedPipe(scheduler.hPipe, NULL);//wait for nodejs server to connect to pipe
     
     
     
@@ -197,6 +203,8 @@ int main() {
     //makes sure threads finish their work before closure
     for (int i = 0; i < (setup.worker_threads+1); i++) {pthread_join(threads[i], NULL);}
     free(threads);
+    pthread_attr_destroy(&attr);
 
     cache_free(GlobalCache);
+    // free(TSetup);
 }

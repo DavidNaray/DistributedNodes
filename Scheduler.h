@@ -42,6 +42,7 @@ typedef struct {
     pthread_cond_t cond;  //prevents busy waiting, (job_count=0 then sleep)
 
     HANDLE hPipe;
+    HANDLE msgPipe;
 } Scheduler;
 
 //kind of like creating the object and then exporting it in javascript 

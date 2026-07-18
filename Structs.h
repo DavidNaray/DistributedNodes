@@ -3,6 +3,7 @@
 
 
 typedef struct {
+    int RId;
     char username[256];
     char password[128];
 }RegisterArgs;
