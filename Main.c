@@ -4,12 +4,15 @@
 #include "../C_MMO_RPG_rewrite/LoginRegister/LoginRegister.h"
 #include <cJSON.h>
 #include "../C_MMO_RPG_rewrite/MongoDBReadWriteCache/Cache.h"
+
 #include "../C_MMO_RPG_rewrite/noiseLib/TerrainGeneration.h"
+#include "../C_MMO_RPG_rewrite/noiseLib/Spiral.h"
 
 #include "../C_MMO_RPG_rewrite/serverComm/ReadWriteServ.h"
 
 #include "../C_MMO_RPG_rewrite/UserUpdates/UserUpdates.h"
 
+#include "../C_MMO_RPG_rewrite/noiseLib/Spiral.h"
 void test_task(void *arg) {
     printf("Worker executed test task: %s\n", (char*)arg);
 }
@@ -56,10 +59,36 @@ Task parse_json_to_task(char json[]){
         UUpdate *args = malloc(sizeof(UUpdate));
         
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
-        strcpy(args->sockid, cJSON_GetObjectItem(root, "sockid")->valuestring);
 
         cJSON_Delete(root);
         return (Task){TechUpdateTask, args};
+    }
+    else if (strcmp(type->valuestring, "TrainableUpdate") == 0){
+        //what tech is available to the user
+        UUpdate *args = malloc(sizeof(UUpdate));
+        
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+
+        cJSON_Delete(root);
+        return (Task){TrainingUpdateTask, args};
+    }
+    else if (strcmp(type->valuestring, "NewRegimen") == 0){
+        //what tech is available to the user
+        RegUpdate *args = malloc(sizeof(RegUpdate));
+        
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+        strcpy(args->regName, cJSON_GetObjectItem(root, "regName")->valuestring);
+
+        cJSON_Delete(root);
+        return (Task){NewRegimenTask, args};
+    }
+    else if (strcmp(type->valuestring, "TilesRequest") == 0){
+        UUpdate *args = malloc(sizeof(UUpdate));
+        
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+
+        cJSON_Delete(root);
+        return (Task){GetUserTiles, args};
     }
 
     printf("mega failure\n");
@@ -127,7 +156,7 @@ void* Reader_thread(void* arg) {
         // Parse JSON into the appropriate Task
         Task t = parse_json_to_task(buffer);
         
-        push_task(&scheduler.queues[0], t);
+        if(t.func!=NULL){push_task(&scheduler.queues[0], t);}
     }
     printf("[Reader] Thread terminated cleanly.\n");
 }
@@ -175,6 +204,7 @@ int main() {
     GlobalCache=cache_create();
     TSetup=SetupTerrainFields(512,512,"Cellular",0.011,123,"../C_MMO_RPG_rewrite/NodeServer/Tiles/");
     ApplyTerrainFields();
+    initSpiral();
 
     mongoc_init();
     mongoClient = mongoc_client_new("mongodb://localhost:27019");
