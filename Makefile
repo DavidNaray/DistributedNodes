@@ -1,9 +1,10 @@
 CC = cl
 CFLAGS = /I"C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/CJSON_lib/cjson" \
          /I"C:/Users/david/vcpkg/installed/x64-windows/include/mongoc-2.0" \
-         /I"C:/Users/david/vcpkg/installed/x64-windows/include/bson-2.0"
+         /I"C:/Users/david/vcpkg/installed/x64-windows/include/bson-2.0" \
+         /I"C:/Program Files (x86)/Windows Kits/10/Lib/10.0.28000.0/um/x64/bcrypt.lib"
 
-LFLAGS = pthreadVC3.lib mongoc2.dll.lib bson2.dll.lib
+LFLAGS = pthreadVC3.lib mongoc2.dll.lib bson2.dll.lib bcrypt.lib
 
 # Source files
 SRCS = Main.c scheduler.c config.c \

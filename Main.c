@@ -13,9 +13,26 @@
 #include "../C_MMO_RPG_rewrite/UserUpdates/UserUpdates.h"
 
 #include "../C_MMO_RPG_rewrite/noiseLib/Spiral.h"
+
+#include <bcrypt.h>
+
 void test_task(void *arg) {
     printf("Worker executed test task: %s\n", (char*)arg);
 }
+
+// char* generate_task_id() {
+//     unsigned long long r;
+//     BCryptGenRandom(NULL, (PUCHAR)&r, sizeof(r), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+//     char out[17];
+//     sprintf(out, "%016llX", r);
+//     return out;
+// }
+void generate_task_id(char out[17]) {
+    unsigned long long r;
+    BCryptGenRandom(NULL, (PUCHAR)&r, sizeof(r), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+    sprintf(out, "%016llX", r);
+}
+
 
 Task parse_json_to_task(char json[]){
     cJSON *root = cJSON_Parse(json);
@@ -26,6 +43,7 @@ Task parse_json_to_task(char json[]){
     
     const cJSON *type = cJSON_GetObjectItem(root, "type");
     printf("'%s'\n", type->valuestring);
+
 
     if (strcmp(type->valuestring, "Register") == 0) {
         RegisterArgs *args = malloc(sizeof(RegisterArgs));
@@ -38,7 +56,12 @@ Task parse_json_to_task(char json[]){
         strcpy(args->password, cJSON_GetObjectItem(root, "password")->valuestring);
 
         cJSON_Delete(root);
-        return (Task){RegisterTask, args};
+        Task t = {
+            .func = RegisterTask,
+            .arg = args
+        };
+        generate_task_id(t.taskId);
+        return t;
     
     }
     else if (strcmp(type->valuestring, "Login") == 0) {
@@ -51,8 +74,13 @@ Task parse_json_to_task(char json[]){
         strcpy(args->password, cJSON_GetObjectItem(root, "password")->valuestring);
 
         cJSON_Delete(root);
-        return (Task){LoginTask, args};
-    
+        // return (Task){LoginTask, args,generate_task_id()};
+        Task t = {
+            .func = LoginTask,
+            .arg = args
+        };
+        generate_task_id(t.taskId);
+        return t;
     }
     else if (strcmp(type->valuestring, "TechTreeUpdate") == 0){
         //what tech is available to the user
@@ -61,7 +89,13 @@ Task parse_json_to_task(char json[]){
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
 
         cJSON_Delete(root);
-        return (Task){TechUpdateTask, args};
+        // return (Task){TechUpdateTask, args,generate_task_id()};
+        Task t = {
+            .func = TechUpdateTask,
+            .arg = args
+        };
+        generate_task_id(t.taskId);
+        return t;
     }
     else if (strcmp(type->valuestring, "TrainableUpdate") == 0){
         //what tech is available to the user
@@ -70,7 +104,13 @@ Task parse_json_to_task(char json[]){
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
 
         cJSON_Delete(root);
-        return (Task){TrainingUpdateTask, args};
+        // return (Task){TrainingUpdateTask, args,generate_task_id()};
+        Task t = {
+            .func = TrainingUpdateTask,
+            .arg = args
+        };
+        generate_task_id(t.taskId);
+        return t;
     }
     else if (strcmp(type->valuestring, "NewRegimen") == 0){
         //what tech is available to the user
@@ -80,7 +120,13 @@ Task parse_json_to_task(char json[]){
         strcpy(args->regName, cJSON_GetObjectItem(root, "regName")->valuestring);
 
         cJSON_Delete(root);
-        return (Task){NewRegimenTask, args};
+        // return (Task){NewRegimenTask, args,generate_task_id()};
+        Task t = {
+            .func = NewRegimenTask,
+            .arg = args
+        };
+        generate_task_id(t.taskId);
+        return t;
     }
     else if (strcmp(type->valuestring, "TilesRequest") == 0){
         UUpdate *args = malloc(sizeof(UUpdate));
@@ -88,12 +134,68 @@ Task parse_json_to_task(char json[]){
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
 
         cJSON_Delete(root);
-        return (Task){GetUserTiles, args};
+        // return (Task){GetUserTiles, args,generate_task_id()};
+        Task t = {
+            .func = GetUserTiles,
+            .arg = args
+        };
+        generate_task_id(t.taskId);
+        return t;
+    }
+    else if (strcmp(type->valuestring, "ConstructableUpdate") == 0){
+        UUpdate *args = malloc(sizeof(UUpdate));
+        
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+
+        cJSON_Delete(root);
+        // return (Task){ConstructionUpdateTask, args,generate_task_id()};
+        Task t = {
+            .func = ConstructionUpdateTask,
+            .arg = args
+        };
+        generate_task_id(t.taskId);
+        return t;
+    }
+    else if (strcmp(type->valuestring, "PlacementMovement") == 0){
+
+        //check if id is real, if it is then go delete
+        cJSON* taskIdItem = cJSON_GetObjectItem(root, "TaskId");
+        if (!taskIdItem || !cJSON_IsString(taskIdItem)) {printf("TaskId missing or not a string\n");}
+        else{
+            char* taskId = taskIdItem->valuestring;
+            // printf("thetask id previous:%s\n",taskId);
+            remove_task_from_queue(&scheduler.queues[0],taskId);
+        };
+        
+
+
+        BuildPlacement *args = malloc(sizeof(BuildPlacement));
+        
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+        strcpy(args->buildingname, cJSON_GetObjectItem(root, "building")->valuestring);
+        
+        generate_task_id(args->taskId);
+
+        cJSON* posArr = cJSON_GetObjectItem(root, "position");
+        args->position[0]=cJSON_GetArrayItem(posArr, 0)->valuedouble;
+        args->position[1]=cJSON_GetArrayItem(posArr, 1)->valuedouble;
+        args->position[2]=cJSON_GetArrayItem(posArr, 2)->valuedouble;
+
+        cJSON_Delete(root);
+        // return (Task){BuildingPosUpdateTask, args,args->taskId};
+        Task t = {
+            .func = BuildingPosUpdateTask,
+            .arg = args
+        };
+        // generate_task_id(t.taskId);
+        strcpy(t.taskId, args->taskId);
+        return t;
     }
 
     printf("mega failure\n");
     cJSON_Delete(root);
-    return (Task){NULL, NULL};
+    Task toReturn= {0};
+    return toReturn;
 }
 
 void* worker_thread(void *arg){
@@ -152,11 +254,20 @@ void* Reader_thread(void* arg) {
 
         buffer[bytesRead] = '\0';
 
-        printf("Read %lu bytes: %s\n", bytesRead, buffer);
+        char *line = strtok(buffer, "\n");
+        while (line != NULL) {
+            // printf("JSON: %s\n", line);
+
+            Task t = parse_json_to_task(line);
+            if (t.func != NULL){push_task(&scheduler.queues[0], t);}
+
+            line = strtok(NULL, "\n");
+        }
+        // printf("Read %lu bytes: %s\n", bytesRead, buffer);
         // Parse JSON into the appropriate Task
-        Task t = parse_json_to_task(buffer);
+        // Task t = parse_json_to_task(buffer);
         
-        if(t.func!=NULL){push_task(&scheduler.queues[0], t);}
+        // if(t.func!=NULL){push_task(&scheduler.queues[0], t);}
     }
     printf("[Reader] Thread terminated cleanly.\n");
 }

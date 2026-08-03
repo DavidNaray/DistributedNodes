@@ -18,6 +18,7 @@ typedef void (*TaskFunction)(void *arg);
 typedef struct {
     TaskFunction func;   // function pointer to execute
     void *arg;           // data passed to the function
+    char taskId[17];
 } Task;
 
 
@@ -57,5 +58,6 @@ void init_queue(Queue *setup);
 
 void init_scheduler(const Config *setup);
 
+void remove_task_from_queue(Queue *q, char* taskId);
 
 #endif

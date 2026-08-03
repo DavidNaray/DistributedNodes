@@ -5,11 +5,54 @@
 //--other than the queue, so malloc the queue
 Scheduler scheduler;
 
+
+//using the taskId find and remove that task from the queue
+void remove_task_from_queue(Queue *q, char* taskId) {
+
+    pthread_mutex_lock(&q->lock);
+
+    TaskNode *prev = NULL;
+    TaskNode *cur  = q->head;
+
+    while (cur != NULL) {
+
+        //is the current node the one were looking for
+        if (strcmp(cur->task.taskId, taskId) == 0) {
+
+            // unlink cur
+            if (prev == NULL) {q->head = cur->next;} 
+            else {prev->next = cur->next;}
+
+            // if removing tail
+            if (cur == q->tail) {q->tail = prev;}
+
+            pthread_mutex_unlock(&q->lock);
+
+            // update global job count
+            pthread_mutex_lock(&scheduler.lock);
+            scheduler.job_count--;
+            pthread_mutex_unlock(&scheduler.lock);
+
+            // free the task args and node
+            free(cur->task.arg);
+            free(cur);
+        }
+
+        prev = cur;
+        cur  = cur->next;
+    }
+
+    pthread_mutex_unlock(&q->lock);
+}
+
+
 void push_task(Queue *q, Task task) {
     TaskNode *node = malloc(sizeof(TaskNode));
     node->task = task;
     node->next = NULL;//since itll be at the top
 
+    // generate_task_id(node->taskId);
+    // printf("TaskID: %s\n", node->taskId);
     pthread_mutex_lock(&q->lock); //lock the queue because we need to update it
 
     if (q->head == NULL) { //if no head then init the array
