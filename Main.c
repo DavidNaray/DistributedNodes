@@ -14,19 +14,14 @@
 
 #include "../C_MMO_RPG_rewrite/noiseLib/Spiral.h"
 
+#include "../C_MMO_RPG_rewrite/TickSystem/TickSystem.h"
+
 #include <bcrypt.h>
 
 void test_task(void *arg) {
     printf("Worker executed test task: %s\n", (char*)arg);
 }
 
-// char* generate_task_id() {
-//     unsigned long long r;
-//     BCryptGenRandom(NULL, (PUCHAR)&r, sizeof(r), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-//     char out[17];
-//     sprintf(out, "%016llX", r);
-//     return out;
-// }
 void generate_task_id(char out[17]) {
     unsigned long long r;
     BCryptGenRandom(NULL, (PUCHAR)&r, sizeof(r), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
@@ -191,11 +186,138 @@ Task parse_json_to_task(char json[]){
         strcpy(t.taskId, args->taskId);
         return t;
     }
+    else if (strcmp(type->valuestring, "BuildingPlacement") == 0){
+        //commented out is direct placement
 
-    printf("mega failure\n");
+        // BuildPlacement *args = malloc(sizeof(BuildPlacement));
+        
+        // strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+        // strcpy(args->buildingname, cJSON_GetObjectItem(root, "building")->valuestring);
+
+        // cJSON* posArr = cJSON_GetObjectItem(root, "position");
+        // args->position[0]=cJSON_GetArrayItem(posArr, 0)->valuedouble;
+        // args->position[1]=cJSON_GetArrayItem(posArr, 1)->valuedouble;
+        // args->position[2]=cJSON_GetArrayItem(posArr, 2)->valuedouble;
+
+        // cJSON_Delete(root);
+        // Task t = {
+            // .func = BuildingPlaceTask,
+            // .arg = args
+        // };
+        // generate_task_id(t.taskId);
+        // return t;
+
+
+        //should have pthread lock but because its just the origin tile, its whatever, that wont change
+        char username[256];
+        strcpy(username, cJSON_GetObjectItem(root, "username")->valuestring);
+        User* u=cache_get_user(GlobalCache,username);
+
+
+        double position[3]; // composition array
+        cJSON* posArr = cJSON_GetObjectItem(root, "position");
+        position[0]=cJSON_GetArrayItem(posArr, 0)->valuedouble;
+        position[1]=cJSON_GetArrayItem(posArr, 1)->valuedouble;
+        position[2]=cJSON_GetArrayItem(posArr, 2)->valuedouble;
+        
+        double pixelsPerUnit = 512.0 / 7.5;
+        double px = (position[0]+3.75f) * pixelsPerUnit;
+        double py = (position[2]+3.75f) * pixelsPerUnit;
+
+        int pxf=(int)px;
+        int pyf=(int)py;
+
+        double xchunk=pxf/512.0;
+        double ychunk=pyf/512.0;
+
+        int xfloored=(int)xchunk;
+        int yfloored=(int)ychunk;
+
+        int tilepixelx=pxf - 512*xfloored;
+        int tilepixely=pyf - 512*yfloored;
+        Tile* focusTile = cache_get_tile(GlobalCache, xfloored, yfloored);
+        
+        char buildingname[32];
+        strcpy(buildingname, cJSON_GetObjectItem(root, "building")->valuestring);
+
+        bool enoughRoom=canplacebuilding(
+            focusTile->Buffer,
+            BuildingTemplates[bTypeFromString(buildingname)],
+            tilepixelx,tilepixely
+        );
+
+        if(enoughRoom){
+            cache_addbuilding_tile(focusTile,
+                tilepixelx,
+                tilepixely,
+                BuildingTemplates[bTypeFromString(buildingname)]
+            );
+            int count=focusTile->buildings.count;
+            int ServerId=focusTile->buildings.list[count-1]->base.ServerId;
+
+            char uniquenames[9][256];
+            int uniquecount=TileObservers(focusTile,uniquenames);
+
+            char informPart[512];
+            informPart[0] = '\0';  // start empty
+            strcat(informPart, "\"inform\":[");
+            for (int u = 0; u < uniquecount; u++) {
+                strcat(informPart, "\"");
+                strcat(informPart, uniquenames[u]);
+                strcat(informPart, "\"");
+                if (u < uniquecount - 1) strcat(informPart, ",");
+            }
+            strcat(informPart, "]");
+
+            char detailsPart[512];
+            snprintf(
+                detailsPart, sizeof(detailsPart),
+                "\"details\":{"
+                    "\"px\":%d,"
+                    "\"py\":%d,"
+                    "\"cx\":%d,"
+                    "\"cy\":%d,"
+                    "\"ServerId\":%d,"
+                    "\"building\":\"%s\""
+                "}",
+                tilepixelx,
+                tilepixely,
+                xfloored,
+                yfloored,
+                ServerId,
+                buildingname
+            );
+            
+            char msg[1024];
+            snprintf(
+                msg, sizeof(msg),
+                "{\"type\":\"BuildingPlaced\",%s,%s}",
+                informPart,
+                detailsPart
+            );
+
+            send_message(msg);
+
+            AddConstructionOrder(focusTile->buildings.count-1,xfloored,yfloored,tilepixelx,tilepixely);
+        }
+        pthread_mutex_unlock(&GlobalCache->lock);
+
+        
+    }
+
     cJSON_Delete(root);
     Task toReturn= {0};
+    toReturn.func=NULL;
     return toReturn;
+}
+
+
+void* tick_thread(void *arg) {
+    while (1) {
+        IncrementTickSystem();
+        
+        Sleep(200);// 5 ticks a second
+    }
 }
 
 void* worker_thread(void *arg){
@@ -332,17 +454,18 @@ int main() {
     // scheduler.hPipe=hPipe;
 
     //create an array of threads, can also use it to free it at program end.
-    pthread_t *threads = malloc(sizeof(pthread_t) * (setup.worker_threads+1));
+    pthread_t *threads = malloc(sizeof(pthread_t) * (setup.worker_threads+2));
 
     pthread_attr_t attr;
     pthread_attr_init(&attr);
     pthread_attr_setstacksize(&attr, 8 * 1024 * 1024);   // 8 MB stack
 
-    for (int i = 0; i < setup.worker_threads; i++) {
+    for (int i = 0; i < setup.worker_threads-1; i++) {
         pthread_create(&threads[i], &attr, worker_thread, NULL);
     }
 
-    pthread_create(&threads[setup.worker_threads], &attr, Reader_thread, NULL);
+    pthread_create(&threads[setup.worker_threads-1], &attr, Reader_thread, NULL);
+    pthread_create(&threads[setup.worker_threads], &attr, tick_thread, NULL);
 
     boot_node_server(setup.node_root,setup.node_start);
     
