@@ -108,20 +108,20 @@ Task parse_json_to_task(char json[]){
         return t;
     }
     else if (strcmp(type->valuestring, "NewRegimen") == 0){
-        //what tech is available to the user
         RegUpdate *args = malloc(sizeof(RegUpdate));
         
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
         strcpy(args->regName, cJSON_GetObjectItem(root, "regName")->valuestring);
 
         cJSON_Delete(root);
-        // return (Task){NewRegimenTask, args,generate_task_id()};
         Task t = {
             .func = NewRegimenTask,
             .arg = args
         };
         generate_task_id(t.taskId);
-        return t;
+
+        AddUserWithTrainingOrders(args->username);
+        return t;        
     }
     else if (strcmp(type->valuestring, "TilesRequest") == 0){
         UUpdate *args = malloc(sizeof(UUpdate));
@@ -177,7 +177,6 @@ Task parse_json_to_task(char json[]){
         args->position[2]=cJSON_GetArrayItem(posArr, 2)->valuedouble;
 
         cJSON_Delete(root);
-        // return (Task){BuildingPosUpdateTask, args,args->taskId};
         Task t = {
             .func = BuildingPosUpdateTask,
             .arg = args
@@ -187,26 +186,6 @@ Task parse_json_to_task(char json[]){
         return t;
     }
     else if (strcmp(type->valuestring, "BuildingPlacement") == 0){
-        //commented out is direct placement
-
-        // BuildPlacement *args = malloc(sizeof(BuildPlacement));
-        
-        // strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
-        // strcpy(args->buildingname, cJSON_GetObjectItem(root, "building")->valuestring);
-
-        // cJSON* posArr = cJSON_GetObjectItem(root, "position");
-        // args->position[0]=cJSON_GetArrayItem(posArr, 0)->valuedouble;
-        // args->position[1]=cJSON_GetArrayItem(posArr, 1)->valuedouble;
-        // args->position[2]=cJSON_GetArrayItem(posArr, 2)->valuedouble;
-
-        // cJSON_Delete(root);
-        // Task t = {
-            // .func = BuildingPlaceTask,
-            // .arg = args
-        // };
-        // generate_task_id(t.taskId);
-        // return t;
-
 
         //should have pthread lock but because its just the origin tile, its whatever, that wont change
         char username[256];
@@ -287,7 +266,7 @@ Task parse_json_to_task(char json[]){
                 ServerId,
                 buildingname
             );
-            
+
             char msg[1024];
             snprintf(
                 msg, sizeof(msg),
