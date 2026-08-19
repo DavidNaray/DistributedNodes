@@ -18,7 +18,8 @@ SRCS = Main.c scheduler.c config.c \
        C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/UserUpdates/UserUpdates.c \
        C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/noiseLib/Spiral.c \
        C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/TickSystem/TickSystem.c \
-        C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/MongoDBReadWriteCache/Schema/Tile.c
+       C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/MongoDBReadWriteCache/Schema/Tile.c \
+       C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/MongoDBReadWriteCache/Schema/User.c
 
 # Output executable
 TARGET = DistributedNodes.exe

@@ -279,9 +279,32 @@ Task parse_json_to_task(char json[]){
 
             AddConstructionOrder(focusTile->buildings.count-1,xfloored,yfloored,tilepixelx,tilepixely);
         }
-        pthread_mutex_unlock(&GlobalCache->lock);
+        // pthread_mutex_unlock(&GlobalCache->lock);
 
         
+    }
+    else if (strcmp(type->valuestring, "DeployCitySet") == 0){
+        DCity *args = malloc(sizeof(DCity));
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+        strcpy(args->buildingname, cJSON_GetObjectItem(root, "name")->valuestring);
+
+        Task t = {
+            .func = SetDeployCity,
+            .arg = args
+        };
+        generate_task_id(t.taskId);
+        return t;
+    }
+    else if (strcmp(type->valuestring, "GetDeployLocations") == 0){
+        UUpdate *args = malloc(sizeof(UUpdate));
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+
+        Task t = {
+            .func = GetCityCenters,
+            .arg = args
+        };
+        generate_task_id(t.taskId);
+        return t;
     }
 
     cJSON_Delete(root);
