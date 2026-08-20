@@ -1,32 +1,15 @@
 #include "scheduler.h"
 #include "config.h"
 #include <stdio.h> 
-#include "../C_MMO_RPG_rewrite/LoginRegister/LoginRegister.h"
 #include <cJSON.h>
-#include "../C_MMO_RPG_rewrite/MongoDBReadWriteCache/Cache.h"
-
-#include "../C_MMO_RPG_rewrite/noiseLib/TerrainGeneration.h"
-#include "../C_MMO_RPG_rewrite/noiseLib/Spiral.h"
-
-#include "../C_MMO_RPG_rewrite/serverComm/ReadWriteServ.h"
-
-#include "../C_MMO_RPG_rewrite/UserUpdates/UserUpdates.h"
-
-#include "../C_MMO_RPG_rewrite/noiseLib/Spiral.h"
-
-#include "../C_MMO_RPG_rewrite/TickSystem/TickSystem.h"
-
 #include <bcrypt.h>
 
-void test_task(void *arg) {
-    printf("Worker executed test task: %s\n", (char*)arg);
-}
+#include "../C_MMO_RPG_rewrite/MongoDBReadWriteCache/Cache.h"
+#include "../C_MMO_RPG_rewrite/noiseLib/TerrainGeneration.h"
 
-void generate_task_id(char out[17]) {
-    unsigned long long r;
-    BCryptGenRandom(NULL, (PUCHAR)&r, sizeof(r), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
-    sprintf(out, "%016llX", r);
-}
+#include "../C_MMO_RPG_rewrite/LoginRegister/LoginRegister.h"
+#include "../C_MMO_RPG_rewrite/UserUpdates/UserUpdates.h"
+#include "../C_MMO_RPG_rewrite/TickSystem/TickSystem.h"
 
 
 Task parse_json_to_task(char json[]){
@@ -37,17 +20,13 @@ Task parse_json_to_task(char json[]){
     }
     
     const cJSON *type = cJSON_GetObjectItem(root, "type");
-    printf("'%s'\n", type->valuestring);
 
 
     if (strcmp(type->valuestring, "Register") == 0) {
         RegisterArgs *args = malloc(sizeof(RegisterArgs));
 
-
         args->RId = atoi(cJSON_GetObjectItem(root, "RId")->valuestring);
-
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
-
         strcpy(args->password, cJSON_GetObjectItem(root, "password")->valuestring);
 
         cJSON_Delete(root);
@@ -56,20 +35,16 @@ Task parse_json_to_task(char json[]){
             .arg = args
         };
         generate_task_id(t.taskId);
-        return t;
-    
+        return t;    
     }
     else if (strcmp(type->valuestring, "Login") == 0) {
         RegisterArgs *args = malloc(sizeof(RegisterArgs));
 
         args->RId = atoi(cJSON_GetObjectItem(root, "RId")->valuestring);
-
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
-
         strcpy(args->password, cJSON_GetObjectItem(root, "password")->valuestring);
 
         cJSON_Delete(root);
-        // return (Task){LoginTask, args,generate_task_id()};
         Task t = {
             .func = LoginTask,
             .arg = args
@@ -78,13 +53,11 @@ Task parse_json_to_task(char json[]){
         return t;
     }
     else if (strcmp(type->valuestring, "TechTreeUpdate") == 0){
-        //what tech is available to the user
         UUpdate *args = malloc(sizeof(UUpdate));
         
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
 
         cJSON_Delete(root);
-        // return (Task){TechUpdateTask, args,generate_task_id()};
         Task t = {
             .func = TechUpdateTask,
             .arg = args
@@ -93,13 +66,11 @@ Task parse_json_to_task(char json[]){
         return t;
     }
     else if (strcmp(type->valuestring, "TrainableUpdate") == 0){
-        //what tech is available to the user
         UUpdate *args = malloc(sizeof(UUpdate));
         
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
 
         cJSON_Delete(root);
-        // return (Task){TrainingUpdateTask, args,generate_task_id()};
         Task t = {
             .func = TrainingUpdateTask,
             .arg = args
@@ -119,8 +90,6 @@ Task parse_json_to_task(char json[]){
             .arg = args
         };
         generate_task_id(t.taskId);
-
-        AddUserWithTrainingOrders(args->username);
         return t;        
     }
     else if (strcmp(type->valuestring, "TilesRequest") == 0){
@@ -129,7 +98,6 @@ Task parse_json_to_task(char json[]){
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
 
         cJSON_Delete(root);
-        // return (Task){GetUserTiles, args,generate_task_id()};
         Task t = {
             .func = GetUserTiles,
             .arg = args
@@ -143,7 +111,6 @@ Task parse_json_to_task(char json[]){
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
 
         cJSON_Delete(root);
-        // return (Task){ConstructionUpdateTask, args,generate_task_id()};
         Task t = {
             .func = ConstructionUpdateTask,
             .arg = args
@@ -152,24 +119,15 @@ Task parse_json_to_task(char json[]){
         return t;
     }
     else if (strcmp(type->valuestring, "PlacementMovement") == 0){
-
         //check if id is real, if it is then go delete
         cJSON* taskIdItem = cJSON_GetObjectItem(root, "TaskId");
         if (!taskIdItem || !cJSON_IsString(taskIdItem)) {printf("TaskId missing or not a string\n");}
-        else{
-            char* taskId = taskIdItem->valuestring;
-            // printf("thetask id previous:%s\n",taskId);
-            remove_task_from_queue(&scheduler.queues[0],taskId);
-        };
-        
-
+        else{remove_task_from_queue(&scheduler.queues[0],taskIdItem->valuestring);};
 
         BuildPlacement *args = malloc(sizeof(BuildPlacement));
         
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
         strcpy(args->buildingname, cJSON_GetObjectItem(root, "building")->valuestring);
-        
-        generate_task_id(args->taskId);
 
         cJSON* posArr = cJSON_GetObjectItem(root, "position");
         args->position[0]=cJSON_GetArrayItem(posArr, 0)->valuedouble;
@@ -181,113 +139,38 @@ Task parse_json_to_task(char json[]){
             .func = BuildingPosUpdateTask,
             .arg = args
         };
-        // generate_task_id(t.taskId);
+        generate_task_id(args->taskId);
         strcpy(t.taskId, args->taskId);
         return t;
     }
     else if (strcmp(type->valuestring, "BuildingPlacement") == 0){
+        BuildPlacement *args = malloc(sizeof(BuildPlacement));
 
-        //should have pthread lock but because its just the origin tile, its whatever, that wont change
-        char username[256];
-        strcpy(username, cJSON_GetObjectItem(root, "username")->valuestring);
-        User* u=cache_get_user(GlobalCache,username);
-
-
-        double position[3]; // composition array
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+        strcpy(args->buildingname, cJSON_GetObjectItem(root, "building")->valuestring);
+        
+        generate_task_id(args->taskId);
+        
         cJSON* posArr = cJSON_GetObjectItem(root, "position");
-        position[0]=cJSON_GetArrayItem(posArr, 0)->valuedouble;
-        position[1]=cJSON_GetArrayItem(posArr, 1)->valuedouble;
-        position[2]=cJSON_GetArrayItem(posArr, 2)->valuedouble;
-        
-        double pixelsPerUnit = 512.0 / 7.5;
-        double px = (position[0]+3.75f) * pixelsPerUnit;
-        double py = (position[2]+3.75f) * pixelsPerUnit;
+        args->position[0]=cJSON_GetArrayItem(posArr, 0)->valuedouble;
+        args->position[1]=cJSON_GetArrayItem(posArr, 1)->valuedouble;
+        args->position[2]=cJSON_GetArrayItem(posArr, 2)->valuedouble;
 
-        int pxf=(int)px;
-        int pyf=(int)py;
-
-        double xchunk=pxf/512.0;
-        double ychunk=pyf/512.0;
-
-        int xfloored=(int)xchunk;
-        int yfloored=(int)ychunk;
-
-        int tilepixelx=pxf - 512*xfloored;
-        int tilepixely=pyf - 512*yfloored;
-        Tile* focusTile = cache_get_tile(GlobalCache, xfloored, yfloored);
-        
-        char buildingname[32];
-        strcpy(buildingname, cJSON_GetObjectItem(root, "building")->valuestring);
-
-        bool enoughRoom=canplacebuilding(
-            focusTile->Buffer,
-            BuildingTemplates[bTypeFromString(buildingname)],
-            tilepixelx,tilepixely
-        );
-
-        if(enoughRoom){
-            cache_addbuilding_tile(focusTile,
-                tilepixelx,
-                tilepixely,
-                BuildingTemplates[bTypeFromString(buildingname)]
-            );
-            int count=focusTile->buildings.count;
-            int ServerId=focusTile->buildings.list[count-1]->base.ServerId;
-
-            char uniquenames[9][256];
-            int uniquecount=TileObservers(focusTile,uniquenames);
-
-            char informPart[512];
-            informPart[0] = '\0';  // start empty
-            strcat(informPart, "\"inform\":[");
-            for (int u = 0; u < uniquecount; u++) {
-                strcat(informPart, "\"");
-                strcat(informPart, uniquenames[u]);
-                strcat(informPart, "\"");
-                if (u < uniquecount - 1) strcat(informPart, ",");
-            }
-            strcat(informPart, "]");
-
-            char detailsPart[512];
-            snprintf(
-                detailsPart, sizeof(detailsPart),
-                "\"details\":{"
-                    "\"px\":%d,"
-                    "\"py\":%d,"
-                    "\"cx\":%d,"
-                    "\"cy\":%d,"
-                    "\"ServerId\":%d,"
-                    "\"building\":\"%s\""
-                "}",
-                tilepixelx,
-                tilepixely,
-                xfloored,
-                yfloored,
-                ServerId,
-                buildingname
-            );
-
-            char msg[1024];
-            snprintf(
-                msg, sizeof(msg),
-                "{\"type\":\"BuildingPlaced\",%s,%s}",
-                informPart,
-                detailsPart
-            );
-
-            send_message(msg);
-
-            AddConstructionOrder(focusTile->buildings.count-1,xfloored,yfloored,tilepixelx,tilepixely);
-        }
-        // pthread_mutex_unlock(&GlobalCache->lock);
-
-        
+        cJSON_Delete(root);
+        Task t = {
+            .func = BuildingPlacementTask,
+            .arg = args
+        };
+        strcpy(t.taskId, args->taskId);
+        return t;
     }
     else if (strcmp(type->valuestring, "DeployCitySet") == 0){
         DCity *args = malloc(sizeof(DCity));
+        
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
         strcpy(args->buildingname, cJSON_GetObjectItem(root, "name")->valuestring);
 
+        cJSON_Delete(root);
         Task t = {
             .func = SetDeployCity,
             .arg = args
@@ -297,8 +180,10 @@ Task parse_json_to_task(char json[]){
     }
     else if (strcmp(type->valuestring, "GetDeployLocations") == 0){
         UUpdate *args = malloc(sizeof(UUpdate));
+        
         strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
 
+        cJSON_Delete(root);
         Task t = {
             .func = GetCityCenters,
             .arg = args
@@ -453,7 +338,6 @@ int main() {
     init_scheduler(&setup);
 
     setupPipe();
-    // scheduler.hPipe=hPipe;
 
     //create an array of threads, can also use it to free it at program end.
     pthread_t *threads = malloc(sizeof(pthread_t) * (setup.worker_threads+2));
@@ -472,16 +356,6 @@ int main() {
     boot_node_server(setup.node_root,setup.node_start);
     
     ConnectNamedPipe(scheduler.hPipe, NULL);//wait for nodejs server to connect to pipe
-    
-    
-    
-    for (int j = 0; j < 30; j++) {
-        char *msg = malloc(32);
-        sprintf(msg, "Hello from task %d", j);
-
-        Task t = { test_task, msg };
-        push_task(&scheduler.queues[0], t);
-    }
 
     //makes sure threads finish their work before closure
     for (int i = 0; i < (setup.worker_threads+1); i++) {pthread_join(threads[i], NULL);}
@@ -489,5 +363,4 @@ int main() {
     pthread_attr_destroy(&attr);
 
     cache_free(GlobalCache);
-    // free(TSetup);
 }

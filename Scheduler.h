@@ -50,6 +50,8 @@ typedef struct {
 //(global variable kinda, so all threads can access it)
 extern Scheduler scheduler;
 
+void generate_task_id(char out[17]);
+
 void push_task(Queue *q, Task task);
 
 TaskNode* pop_task(Queue *q);

@@ -5,6 +5,11 @@
 //--other than the queue, so malloc the queue
 Scheduler scheduler;
 
+void generate_task_id(char out[17]) {
+    unsigned long long r;
+    BCryptGenRandom(NULL, (PUCHAR)&r, sizeof(r), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+    sprintf(out, "%016llX", r);
+}
 
 //using the taskId find and remove that task from the queue
 void remove_task_from_queue(Queue *q, char* taskId) {
