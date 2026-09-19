@@ -91,6 +91,20 @@ Task parse_json_to_task(char json[]){
         generate_task_id(t.taskId);
         return t;        
     }
+    else if (strcmp(type->valuestring, "DestroyRegimen") == 0){
+        DelReg *args = malloc(sizeof(DelReg));
+        
+        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
+        args->slot= cJSON_GetObjectItem(root, "regSlot")->valueint;
+
+        cJSON_Delete(root);
+        Task t = {
+            .func = DelRegimenTask,
+            .arg = args
+        };
+        generate_task_id(t.taskId);
+        return t;        
+    }
     else if (strcmp(type->valuestring, "TilesRequest") == 0){
         UUpdate *args = malloc(sizeof(UUpdate));
         
