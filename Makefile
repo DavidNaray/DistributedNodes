@@ -14,11 +14,12 @@ SRCS = Main.c scheduler.c config.c \
        C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/MongoDBReadWriteCache/ReadUser.c \
        C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/noiseLib/TerrainGeneration.c \
        C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/serverComm/ReadWriteServ.c \
-       C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/UserUpdates/UserUpdates.c \
        C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/noiseLib/Spiral.c \
        C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/TickSystem/TickSystem.c \
+       C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/TickSystem/BuildingComponent.c \
        C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/MongoDBReadWriteCache/Schema/Tile.c \
-       C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/MongoDBReadWriteCache/Schema/User.c
+       C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/MongoDBReadWriteCache/Schema/User.c \
+       C:/Users/david/Documents/CodingProjects/C_MMO_RPG_rewrite/Pathfinding/Pathfinding.c
 
 # Output executable
 TARGET = DistributedNodes.exe

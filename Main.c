@@ -8,7 +8,6 @@
 #include "../C_MMO_RPG_rewrite/noiseLib/TerrainGeneration.h"
 
 #include "../C_MMO_RPG_rewrite/LoginRegister/LoginRegister.h"
-#include "../C_MMO_RPG_rewrite/UserUpdates/UserUpdates.h"
 #include "../C_MMO_RPG_rewrite/TickSystem/TickSystem.h"
 
 
@@ -173,19 +172,6 @@ Task parse_json_to_task(char json[]){
         cJSON_Delete(root);
         Task t = {
             .func = SetDeployCity,
-            .arg = args
-        };
-        generate_task_id(t.taskId);
-        return t;
-    }
-    else if (strcmp(type->valuestring, "GetDeployLocations") == 0){
-        UUpdate *args = malloc(sizeof(UUpdate));
-        
-        strcpy(args->username, cJSON_GetObjectItem(root, "username")->valuestring);
-
-        cJSON_Delete(root);
-        Task t = {
-            .func = GetCityCenters,
             .arg = args
         };
         generate_task_id(t.taskId);
